@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Oswald } from "next/font/google";
 import MuiProvider from "./providers/MuiProvider";
+import StoreProvider from "./providers/StoreProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,7 +35,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
       >
-        <MuiProvider>{children}</MuiProvider>
+        <StoreProvider>
+          <MuiProvider>{children}</MuiProvider>
+        </StoreProvider>
       </body>
     </html>
   );

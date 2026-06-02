@@ -1,13 +1,19 @@
 "use client";
 
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ComponentProps, FormEvent, useEffect, useState } from "react";
+import { getRtkErrorMessage } from "@/lib/api/getRtkErrorMessage";
+import { redirectAfterAuth } from "@/lib/auth/redirectAfterAuth";
+import { syncSessionCookie } from "@/lib/auth/syncSessionCookie";
+import { useLoginMutation, useSignUpMutation } from "@/store/api/authApi";
+import type { LoginResponse } from "@/types/session";
 import { AUTH_ROUTES, AuthMode, PAINEL_ROUTE, UserRole } from "../types/auth";
 import styles from "./AuthForm.module.css";
 
@@ -30,6 +36,7 @@ const ROLE_CONFIG = {
     otherRoleLabel: "É admin ou instrutor?",
     otherRoleLink: "Acessar painel",
     allowsRegister: true,
+    redirectAfterLogin: null,
   },
   admin: {
     badgeLogin: "Admin / Instrutor",
@@ -45,6 +52,7 @@ const ROLE_CONFIG = {
     otherRoleLabel: "É aluno?",
     otherRoleLink: "Entrar como aluno",
     allowsRegister: false,
+    redirectAfterLogin: PAINEL_ROUTE,
   },
 } as const;
 
@@ -70,15 +78,20 @@ function FormField({
 }
 
 export default function AuthForm({ role }: AuthFormProps) {
-  const router = useRouter();
   const config = ROLE_CONFIG[role];
   const otherRole: UserRole = role === "aluno" ? "admin" : "aluno";
+
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
+  const [signUp, { isLoading: isSignUpLoading }] = useSignUpMutation();
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isSubmitting = isLoginLoading || isSignUpLoading;
 
   useEffect(() => {
     setMode("login");
@@ -86,24 +99,48 @@ export default function AuthForm({ role }: AuthFormProps) {
     setEmail("");
     setPassword("");
     setConfirmPassword("");
+    setErrorMessage(null);
   }, [role]);
 
   const isLogin = mode === "login";
   const passwordsMismatch =
     !isLogin && confirmPassword.length > 0 && password !== confirmPassword;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setErrorMessage(null);
 
     if (passwordsMismatch) {
       return;
     }
 
-    // TODO: integrar com API de autenticação
-    console.log(isLogin ? "login" : "register", { role, name, email, password });
+    try {
+      let session: LoginResponse;
 
-    if (isLogin && role === "admin") {
-      router.push(PAINEL_ROUTE);
+      if (isLogin) {
+        session = await login({ email, password }).unwrap();
+      } else {
+        session = await signUp({ email, password, name }).unwrap();
+      }
+
+      if (!session.access_token) {
+        setErrorMessage(
+          "Login sem token de acesso. Verifique se o e-mail foi confirmado."
+        );
+        return;
+      }
+
+      await syncSessionCookie(session);
+
+      if (config.redirectAfterLogin) {
+        redirectAfterAuth(config.redirectAfterLogin);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        setErrorMessage(error.message);
+        return;
+      }
+      setErrorMessage(getRtkErrorMessage(error));
     }
   }
 
@@ -113,6 +150,7 @@ export default function AuthForm({ role }: AuthFormProps) {
     setEmail("");
     setPassword("");
     setConfirmPassword("");
+    setErrorMessage(null);
   }
 
   return (
@@ -142,6 +180,12 @@ export default function AuthForm({ role }: AuthFormProps) {
         {isLogin ? config.descriptionLogin : config.descriptionRegister}
       </Typography>
 
+      {errorMessage && (
+        <Alert severity="error" className={styles.alert}>
+          {errorMessage}
+        </Alert>
+      )}
+
       <Box component="form" onSubmit={handleSubmit} className={styles.form}>
         {!isLogin && config.allowsRegister && (
           <FormField
@@ -153,6 +197,7 @@ export default function AuthForm({ role }: AuthFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Seu nome"
+            disabled={isSubmitting}
           />
         )}
 
@@ -165,6 +210,7 @@ export default function AuthForm({ role }: AuthFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="seu@email.com"
+          disabled={isSubmitting}
         />
 
         <FormField
@@ -176,6 +222,7 @@ export default function AuthForm({ role }: AuthFormProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
+          disabled={isSubmitting}
         />
 
         {!isLogin && config.allowsRegister && (
@@ -192,6 +239,7 @@ export default function AuthForm({ role }: AuthFormProps) {
             helperText={
               passwordsMismatch ? "As senhas não coincidem." : undefined
             }
+            disabled={isSubmitting}
           />
         )}
 
@@ -207,8 +255,13 @@ export default function AuthForm({ role }: AuthFormProps) {
           type="submit"
           variant="contained"
           color="primary"
-          disabled={passwordsMismatch}
+          disabled={passwordsMismatch || isSubmitting}
           className={styles.submitButton}
+          startIcon={
+            isSubmitting ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : undefined
+          }
         >
           {isLogin ? config.submitLogin : config.submitRegister}
         </Button>
@@ -222,6 +275,7 @@ export default function AuthForm({ role }: AuthFormProps) {
               type="button"
               onClick={() => switchMode(isLogin ? "register" : "login")}
               className={styles.switchLink}
+              disabled={isSubmitting}
             >
               {isLogin ? "Cadastre-se" : "Entrar"}
             </Button>

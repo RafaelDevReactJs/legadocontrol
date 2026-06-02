@@ -139,6 +139,10 @@
   font-size: 0.875rem !important;
 }
 
+.alert {
+  margin-bottom: 1.25rem;
+}
+
 .footer {
   margin-top: 2rem;
   padding-top: 1.5rem;
