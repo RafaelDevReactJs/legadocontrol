@@ -151,6 +151,21 @@
   color: #a0a0a0;
 }
 
+.roleSwitch {
+  margin-top: 0.75rem;
+}
+
+.roleLink {
+  font-weight: 600;
+  color: #ffc300;
+  transition: color 0.2s ease;
+}
+
+.roleLink:hover {
+  color: #ffd033;
+  text-decoration: underline;
+}
+
 .switchLink {
   font-weight: 600 !important;
   color: #ffc300 !important;

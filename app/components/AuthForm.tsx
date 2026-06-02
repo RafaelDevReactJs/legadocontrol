@@ -5,10 +5,47 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Image from "next/image";
-import { ComponentProps, FormEvent, useState } from "react";
+import Link from "next/link";
+import { ComponentProps, FormEvent, useEffect, useState } from "react";
+import { AUTH_ROUTES, AuthMode, UserRole } from "../types/auth";
 import styles from "./AuthForm.module.css";
 
-type AuthMode = "login" | "register";
+type AuthFormProps = {
+  role: UserRole;
+};
+
+const ROLE_CONFIG = {
+  aluno: {
+    badgeLogin: "Área do aluno",
+    badgeRegister: "Nova conta",
+    headingLogin: "Entrar",
+    headingRegister: "Cadastre-se",
+    descriptionLogin:
+      "Acesse sua conta para acompanhar treinos e graduações.",
+    descriptionRegister:
+      "Crie sua conta e faça parte da família CT Legado.",
+    submitLogin: "Entrar",
+    submitRegister: "Criar conta",
+    otherRoleLabel: "É admin ou instrutor?",
+    otherRoleLink: "Acessar painel",
+    allowsRegister: true,
+  },
+  admin: {
+    badgeLogin: "Admin / Instrutor",
+    badgeRegister: "Admin / Instrutor",
+    headingLogin: "Entrar",
+    headingRegister: "Entrar",
+    descriptionLogin:
+      "Acesse o painel para gerenciar turmas, alunos e graduações.",
+    descriptionRegister:
+      "Acesse o painel para gerenciar turmas, alunos e graduações.",
+    submitLogin: "Acessar painel",
+    submitRegister: "Acessar painel",
+    otherRoleLabel: "É aluno?",
+    otherRoleLink: "Entrar como aluno",
+    allowsRegister: false,
+  },
+} as const;
 
 function FormField({
   id,
@@ -31,12 +68,23 @@ function FormField({
   );
 }
 
-export default function AuthForm() {
+export default function AuthForm({ role }: AuthFormProps) {
+  const config = ROLE_CONFIG[role];
+  const otherRole: UserRole = role === "aluno" ? "admin" : "aluno";
+
   const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    setMode("login");
+    setName("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+  }, [role]);
 
   const isLogin = mode === "login";
   const passwordsMismatch =
@@ -50,11 +98,13 @@ export default function AuthForm() {
     }
 
     // TODO: integrar com API de autenticação
-    console.log(isLogin ? "login" : "register", { name, email, password });
+    console.log(isLogin ? "login" : "register", { role, name, email, password });
   }
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
+    setName("");
+    setEmail("");
     setPassword("");
     setConfirmPassword("");
   }
@@ -75,21 +125,19 @@ export default function AuthForm() {
       <div className={styles.badge}>
         <span className={styles.badgeDot} />
         <span className={styles.badgeText}>
-          {isLogin ? "Área do aluno" : "Nova conta"}
+          {isLogin ? config.badgeLogin : config.badgeRegister}
         </span>
       </div>
 
       <Typography component="h1" className={styles.heading}>
-        {isLogin ? "Entrar" : "Cadastre-se"}
+        {isLogin ? config.headingLogin : config.headingRegister}
       </Typography>
       <Typography component="p" className={styles.description}>
-        {isLogin
-          ? "Acesse sua conta para acompanhar treinos e graduações."
-          : "Crie sua conta e faça parte da família CT Legado."}
+        {isLogin ? config.descriptionLogin : config.descriptionRegister}
       </Typography>
 
       <Box component="form" onSubmit={handleSubmit} className={styles.form}>
-        {!isLogin && (
+        {!isLogin && config.allowsRegister && (
           <FormField
             id="name"
             label="Nome completo"
@@ -124,7 +172,7 @@ export default function AuthForm() {
           placeholder="••••••••"
         />
 
-        {!isLogin && (
+        {!isLogin && config.allowsRegister && (
           <FormField
             id="confirmPassword"
             label="Confirmar senha"
@@ -156,20 +204,32 @@ export default function AuthForm() {
           disabled={passwordsMismatch}
           className={styles.submitButton}
         >
-          {isLogin ? "Entrar" : "Criar conta"}
+          {isLogin ? config.submitLogin : config.submitRegister}
         </Button>
       </Box>
 
       <div className={styles.footer}>
-        <Typography component="p" className={styles.footerText}>
-          {isLogin ? "Não tem uma conta?" : "Já possui uma conta?"}{" "}
-          <Button
-            type="button"
-            onClick={() => switchMode(isLogin ? "register" : "login")}
-            className={styles.switchLink}
-          >
-            {isLogin ? "Cadastre-se" : "Entrar"}
-          </Button>
+        {config.allowsRegister && (
+          <Typography component="p" className={styles.footerText}>
+            {isLogin ? "Não tem uma conta?" : "Já possui uma conta?"}{" "}
+            <Button
+              type="button"
+              onClick={() => switchMode(isLogin ? "register" : "login")}
+              className={styles.switchLink}
+            >
+              {isLogin ? "Cadastre-se" : "Entrar"}
+            </Button>
+          </Typography>
+        )}
+
+        <Typography
+          component="p"
+          className={`${styles.footerText} ${config.allowsRegister ? styles.roleSwitch : ""}`}
+        >
+          {config.otherRoleLabel}{" "}
+          <Link href={AUTH_ROUTES[otherRole]} className={styles.roleLink}>
+            {config.otherRoleLink}
+          </Link>
         </Typography>
       </div>
     </Box>
