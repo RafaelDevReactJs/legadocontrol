@@ -6,3 +6,5 @@ export const AUTH_ROUTES: Record<UserRole, string> = {
   aluno: "/login/aluno",
   admin: "/login/admin",
 };
+
+export const PAINEL_ROUTE = "/painel";

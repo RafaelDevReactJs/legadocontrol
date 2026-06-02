@@ -6,8 +6,9 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ComponentProps, FormEvent, useEffect, useState } from "react";
-import { AUTH_ROUTES, AuthMode, UserRole } from "../types/auth";
+import { AUTH_ROUTES, AuthMode, PAINEL_ROUTE, UserRole } from "../types/auth";
 import styles from "./AuthForm.module.css";
 
 type AuthFormProps = {
@@ -69,6 +70,7 @@ function FormField({
 }
 
 export default function AuthForm({ role }: AuthFormProps) {
+  const router = useRouter();
   const config = ROLE_CONFIG[role];
   const otherRole: UserRole = role === "aluno" ? "admin" : "aluno";
 
@@ -99,6 +101,10 @@ export default function AuthForm({ role }: AuthFormProps) {
 
     // TODO: integrar com API de autenticação
     console.log(isLogin ? "login" : "register", { role, name, email, password });
+
+    if (isLogin && role === "admin") {
+      router.push(PAINEL_ROUTE);
+    }
   }
 
   function switchMode(nextMode: AuthMode) {
